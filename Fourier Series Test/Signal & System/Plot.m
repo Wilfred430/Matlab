@@ -1,7 +1,7 @@
 % === 使用者輸入部分 ===
 % 輸入轉移函數的分子與分母係數（降冪排列）
-num = input('Enter numerator coefficients (e.g., [1]): ', 's');
-den = input('Enter denominator coefficients (e.g., [1 100] or [1 2 100]): ', 's');
+num = input('請輸入分子係數 (例如 [1]): ', 's');
+den = input('請輸入分母係數 (例如 [1 100] 或 [1 2 100]): ', 's');
 
 % 將字串轉為向量
 num = str2num(num);
