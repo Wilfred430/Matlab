@@ -4,26 +4,33 @@ syms s % laplace analysis
 syms Rs Rp Cp % constant component 
 syms Ru Cu % unknown component
 
-
+% Fig 3.(a) analysis
 Z1 = (Rp)/(1+(s*Rp*Cp)); % Rp parallel with Cp
 
-Zu = Ru + 1/(s*Cp); % unknown component as Ru series to Cu
+Zu_a = Ru + 1/(s*Cp); % unknown component as Ru series to Cu
 
-Zpara = parallel(Z1,Zu); % defined Z1 || (Z1 + Zu)
+Zpara_a = parallel2(Z1,Zu_a); % defined Z1 || (Z1 + Zu)
 
-H = (Z1/(Z1+Zu))*(Zpara/(Rs+Zpara));
+H = (Z1/(Z1+Zu_a))*(Zpara_a/(Rs+Zpara_a));
 
 % draw simplified equation
 H_simplified = simplify(H); 
-disp('show the H(s) simplify result：');
+disp('show the Ha(s) simplify result：');
 pretty(H_simplified);
 
 % steady-state analysis
 H_steady =limit(H_simplified,s,0);
-disp("show the steady-state analysis : ");
-pretty
+disp("show the (a) steady-state analysis : ");
+pretty(H_steady);
+
+% Fig 3.(b) analysis
+Zb = parallel2(1/(s*Cu),Z1);
+
+Zpara_b = parallel2(Z1,(Ru))
 
 % function declaration
-function z = parallel(x,y)
+
+% 2 parameters parallel
+function z = parallel2(x,y)
 z = (x*y)/(x+y);
 end
