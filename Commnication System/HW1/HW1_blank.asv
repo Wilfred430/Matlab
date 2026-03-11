@@ -113,7 +113,7 @@ alpha = dt/(RC + dt);
 
 cohe_lpf = zeros(size(coher));
 for n = 2:length(coher)   
-    cohe_lpf(n) = alpha*coher(n)+(RC/(RC+dt))*cohe_lpf(n-1);
+    cohe_lpf(n) = ??;
 end
 
 figure;
