@@ -1,0 +1,176 @@
+clear; close all; clc;
+
+%% ================== 基本參數 ==================
+fd = 8000; % Discretization frequency
+T  = 1;            % 訊號長度
+t  = 0:1/fd:T-1/fd;
+
+noise_power = 0.3;   % 雜訊強度 
+
+%% ================== 原始平滑類比訊號 ==================
+f1 = 100;
+% m = (1 + 0.5*cos(2*pi*f1*t)) .* cos(2*pi*f1*t);
+m = 0.1  + 3*cos(2*pi*f1*(t-1.5/T)/(25)) ...
+    - 4*sin(2*pi*f1*(t-0.5/T)/(15));
+figure; plot(t,m,'k'); title('Original Analog Signal m(t)');
+xlabel('t')
+
+%% =====================================================
+%%  數位 PAM 傳輸
+%% =====================================================
+fs = 300;                 
+Ns = round(fd/fs);          
+L  = 16; %L=4,16,64                    
+
+%% ---------- 1️. Sampling ----------
+n = ??;    % sampling period is Ns
+m_s = m(n);
+
+figure;
+plot(t,m,'k'); hold on;
+stem(t(n),m_s,'r','filled');
+title('Step 1: Sampling');
+legend('Original m(t)','Samples');
+xlabel('t')
+%% ---------- 2️. Quantization ----------
+m_min = min(m_s);
+m_max = max(m_s);
+delta = ??; %quantization interval
+            %devide interval [m_min, m_max] into L-1 part
+
+q_index = ??;  %quantization index, each value 0~L-1
+               %try the function "round" 
+a = ??;  %quantization value
+
+figure;
+stem(t(n),m_s,'k','filled'); hold on;
+stairs(t(n),a,'r','LineWidth',1.5);
+title('Step 2: Quantization');
+legend('Sampled Values','Quantized Levels');
+xlabel('t')
+%% ---------- 3️. PAM Modulation ----------
+pulse = ones(1,Ns);
+s_pam = zeros(1,length(a)*Ns);
+
+for k = 1:length(a)
+    s_pam((k-1)*Ns+1:k*Ns) = a(k)*pulse;
+end
+
+t_pam = (0:length(s_pam)-1)/fd;
+
+figure;
+plot(t_pam,s_pam,'b');
+title('Step 3: PAM Signal (Transmitted Digital Waveform)');
+xlabel('t')
+%% ---------- 4️. Add Noise ----------
+r_pam = s_pam + sqrt(noise_power)*randn(size(s_pam));
+
+figure;
+plot(t_pam,r_pam,'r');
+title('Step 4: Received Signal with Noise');
+xlabel('t')
+%% ---------- 5️. Matched Filter ----------
+h = fliplr(pulse);
+y = ??;  %pass the signal r_pam through filter h
+                    %try function "conv"
+y = y / sum(pulse.^2);
+
+t_y = (0:length(y)-1)/fd;
+figure;
+plot(t_y,y);
+title('Step 5: Matched Filter Output');
+xlabel('t')
+%% ---------- 6️. Sampling for Decision ----------
+sample_index = Ns:Ns:length(y);
+sample_points = y(sample_index);
+
+for k = 1:length(a)
+    a_hat(k) = ??;
+               %a_hat(k) is the closest quatization level
+               %to the sample point(k)
+               %%try the function "round"
+end
+
+figure;
+stem(sample_index/fd,a_hat,'filled');
+title('Step 6: Samples After Matched Filter');
+xlabel('t')
+
+%% ---------- 7️. Signal Reconstruction (square wave)----------
+m_rec_dig = zeros(size(m));
+for k = 1:length(a_hat)
+    idx = (k-1)*Ns+1:k*Ns;
+    if idx(end) <= length(m_rec_dig)
+        m_rec_dig(idx) = a_hat(k);
+    end
+end
+
+figure;
+plot(t,m,'k','LineWidth',1.5); hold on;
+plot(t,m_rec_dig,'b');
+legend('Original','Digital Recovered');
+title('Step 7: Reconstructed Signal');
+xlabel('t')
+
+%% ---------- 8. Signal Reconstruction (sinc) ----------
+t_sample = t(n);          % 取樣時刻
+m_rec_sinc = zeros(size(t));
+
+for k = 1:length(a_hat)
+    m_rec_sinc = ??;
+end
+
+figure;
+plot(t,m,'k','LineWidth',1.5); hold on;
+plot(t,m_rec_sinc,'b');
+legend('Original','Sinc Reconstructed');
+title('Step 7-2: Sinc Reconstruction');
+xlabel('t')
+
+%% =====================================================
+%%  DSB-C
+%% =====================================================
+fc = 1000;      % 載波
+ka = 0.7;
+carrier = cos(2*pi*fc*t);
+m_scale= max(abs(m));
+m_normal=m/m_scale;
+s_am = (1 + ka*m_normal).*carrier;
+
+% 加雜訊
+r_am = s_am + sqrt(noise_power)*randn(size(s_am));
+
+% Envelope detection
+env = abs(r_am);
+
+% LPF (頻域實現)
+N = length(env);
+f = (-N/2:N/2-1)*(fd/N);
+ENV = fftshift(fft(env))/fd;
+
+H = zeros(size(f));
+H(abs(f)<fc/4) = 1;
+
+env_lpf = real(ifft(ifftshift(ENV.*H)))*fd;
+
+% abs 檢波比例補償
+env_lpf = env_lpf * (pi/2);
+m_rec_am = (env_lpf - 1)/ka*m_scale;
+
+figure;
+plot(t,m,'k','LineWidth',1.5); hold on;
+plot(t,m_rec_am,'r');
+legend('Original','AM Recovered');
+title('Analog AM Transmission Result');
+xlabel('t')
+
+%% =====================================================
+%%  類比 vs 數位 最終比較
+%% =====================================================
+figure;
+plot(t,m,'k','LineWidth',1.5); hold on;
+plot(t,m_rec_am,'r');
+plot(t,m_rec_sinc,'b');
+legend('Original','Analog AM','Digital PAM');
+title('Analog vs Digital Transmission Comparison');
+xlabel('t')
