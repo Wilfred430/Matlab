@@ -122,7 +122,7 @@ t_sample = t(n);          % 取樣時刻
 m_rec_sinc = zeros(size(t));
 
 for k = 1:length(a_hat)
-    m_rec_sinc = m_rec_sinc + a_hat(k) * sinc((t - t_sample(k)) * fs);
+    m_rec_sinc = ??;
 end
 
 figure;
@@ -132,7 +132,7 @@ legend('Original','Sinc Reconstructed');
 title('Step 7-2: Sinc Reconstruction');
 xlabel('t')
 
-
+%{
 %% =====================================================
 %%  DSB-C
 %% =====================================================
@@ -180,3 +180,5 @@ plot(t,m_rec_sinc,'b');
 legend('Original','Analog AM','Digital PAM');
 title('Analog vs Digital Transmission Comparison');
 xlabel('t')
+
+%}
