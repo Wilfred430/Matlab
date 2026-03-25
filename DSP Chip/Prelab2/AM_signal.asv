@@ -1,0 +1,9 @@
+close all;
+clear all;
+clc;
+
+%% parameter declaration
+a = 0.3;
+fc = 2000;
+fm = 
+AM_signal = (1+a)
