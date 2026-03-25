@@ -50,11 +50,11 @@ end
 %% --- Phase 2: Data Bridge to Simulink ---
 
 % 1. defined parameter as a num
-Rs_val = 10;      % 10 Ohm
+Rs_val = 10;      % 10 Ohm (Rs should be very small)
 Rp_val = 10000;   % 10 kOhm
 Cp_val = 1e-6;    % 1 uF
-Ru_val = 100;     % 100 Ohm
-Cu_val = 1e-6;    % 1 uF 
+Ru_val = 100;     % 100 Ohm (based on self define)
+Cu_val = 1e-6;    % 1 uF (based on self define)
 
 % 2. Substitution
 % use subs to substitute abstract para to real value
