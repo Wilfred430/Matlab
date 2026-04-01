@@ -6,7 +6,7 @@ fd = 8000;              % Discretization frequency
 fs = 200;               % Symbol Rate 
 T  = 1;
 t  = 0:1/fd:T-1/fd;
-noise_power = 0.1;      
+noise_power = 0.01;      
 
 % 產生 message m(t)
 fm = 100;
@@ -30,13 +30,16 @@ m_min = min(m_s);
 m_max = max(m_s);
 
 % 計算量化間隔 (總範圍除以 L-1 個間隔)
-delta = ??; 
+delta = (m_max - m_min) / (L - 1); 
 
 % 計算量化索引
-q_index = ??; 
+q_index = round((m_s - m_min) / delta); 
+% clamp index
+q_index(q_index < 0) = 0;
+q_index(q_index > L-1) = L-1;
 
 % 根據索引還原成量化後的數值 (重建數值)
-a = ??; 
+a = q_index * delta + m_min; 
 
 figure; stem(a,'filled'); title('Quantized Symbols');
 xlabel('Symbol Index');
@@ -47,7 +50,9 @@ xlabel('Symbol Index');
 pulse = ones(1,Ns);
 
 % 將每個符號 a 展頻成方波 (提示：利用 kron 函數與 pulse 結合)
-s_sc = ??; 
+% 確保 a 為 row vector
+a = a(:).';
+s_sc = kron(a, pulse); 
 
 t_sc = (0:length(s_sc)-1)/fd;
 figure;
@@ -61,7 +66,7 @@ xlabel('t');
 % 設定延遲 (秒) 與 路徑增益
 delay_sec = [0,  0.05, 0.07]; 
 amp = [1 -0.95 -0.4];
-delay_samples = ??; % 將時間延遲換算成離散化點數，算出現在第幾個1/fd
+delay_samples = round(fd * delay_sec); % 將時間延遲換算成離散化點數，算出現在第幾個1/fd
 h = zeros(1,max(delay_samples)+1);
 for k = 1:length(delay_samples)
     h(delay_samples(k)+1) = amp(k);
@@ -95,7 +100,7 @@ title('Multipath Components'); xlabel('t');
 %% 6. Received PAM Signal (Multipath + AWGN)
 %% =====================================================
 % 計算通過通道後的訊號 (提示：使用 "conv" 函數卷積 s_sc 與 h)
-r_sc_clean = ??; 
+r_sc_clean = conv(s_sc, h); 
 
 noise_pam = sqrt(noise_power) * randn(size(r_sc_clean)); % 加入雜訊
 r_sc = r_sc_clean + noise_pam;
@@ -116,7 +121,7 @@ test_x = [1 zeros(1, Nfft-1)];
 
 % 2. 經過類比傳輸流程
 % 將測試 Impulse 轉為方波形式 (提示：利用 kron 與 pulse)
-test_wave = ??; 
+test_wave = kron(test_x, pulse); 
 
 
 noise_impluse = sqrt(noise_power) * randn(size(conv(test_wave, h)));
@@ -148,14 +153,14 @@ ofdm_tx_short = [];
 
 for b=1:numBlocks
     % IFFT: 對 A_mat 的第 b 個 column 做 IDFT 轉換，可以用"ifft"函數
-    x = ??; 
-    
+    x = ifft(A_mat(:, b)); 
+
     % Add CP: 取 x 的最後 CP_short 點放到最前面，構成 [CP; x]
-    ofdm_tx_short = ??; 
+    ofdm_tx_short = [ofdm_tx_short; x(end-CP_short+1:end); x]; 
 end
 
 %  將 OFDM 訊號加載到方波 (提示：使用 kron)
-tx_short = ??; 
+tx_short = kron(ofdm_tx_short(:).', pulse); 
 
 rx_short_clean = conv(tx_short, h); 
 noise_short = sqrt(noise_power) * randn(size(rx_short_clean));
@@ -166,16 +171,20 @@ rx_short_down = rx_short(Ns:Ns:end);
 
 ptr = 1; 
 ofdm_rx_short = [];
+% 防止 H_eff 含接近 0 值造成數值問題
+H_eff_safe = H_eff;
+H_eff_safe(abs(H_eff_safe) < 1e-8) = 1e-8;
+
 for b=1:numBlocks    
     % Remove CP: 從目前的指針 ptr，跳過 CP，取出長度為 Nfft 的訊號
-    seg = ??; 
-    
+    seg = rx_short_down(ptr + CP_short : ptr + CP_short + Nfft - 1); 
+
     % 將 seg 轉回頻域，可以用"fft" 函數 (記得轉置 .' 以符合維度)
-    Y = ??; 
-    
+    Y = fft(seg.'); 
+
     % Zero-Forcing Equalizer: 除以通道響應 H_eff (去除通道影響)，可用"./"
-    X_hat = ??; 
-    
+    X_hat = Y ./ H_eff_safe.';
+
     ofdm_rx_short = [ofdm_rx_short; X_hat];
     ptr = ptr + Nfft + CP_short;
 end
@@ -211,13 +220,13 @@ ofdm_tx_long = [];
 % TX Process
 for b=1:numBlocks
     % IFFT: 對 A_mat 的第 b 個 column 做 IFFT
-    x = ??;
+    x = ifft(A_mat(:, b));
     % Add CP: 加上長度為 CP_long 的循環字首
-    ofdm_tx_long = ??;
+    ofdm_tx_long = [ofdm_tx_long; x(end-CP_long+1:end); x];
 end
 
 % 產生方波 (提示：使用 kron)
-tx_long = ??;
+tx_long = kron(ofdm_tx_long.', pulse);
 
 rx_long_clean = conv(tx_long, h);
 noise_long = sqrt(noise_power) * randn(size(rx_long_clean));
@@ -231,10 +240,10 @@ ptr = 1;
 ofdm_rx_long = [];
 for b=1:numBlocks
     % Remove CP: 
-    seg = ??;
-    Y = ??;
-    X_hat = ??;
-    
+    seg = rx_long_down(ptr + CP_long : ptr + CP_long + Nfft - 1);
+    Y = fft(seg.');
+    X_hat = Y ./ H_eff_safe.';
+
     ofdm_rx_long = [ofdm_rx_long; X_hat];
     ptr = ptr + Nfft + CP_long;
 end
@@ -266,3 +275,69 @@ num_errors_cp2 = sum(a_recovered_cp2 ~= a);
 num_errors_cp20 = sum(a_recovered_cp20 ~= a);
 disp(['Error Rate (cp=2): ', num2str(num_errors_cp2/length(a))]);
 disp(['Error Rate (cp=20): ', num2str(num_errors_cp20/length(a))]);
+
+%% =====================================================
+%% 11. (作業要求 13) 繪製 SER vs Noise Power 曲線
+%% =====================================================
+% 設定要掃描的雜訊功率範圍 (從 10^-6 到 10^-1)
+noise_powers = logspace(-6, -1, 10); 
+SER_cp2_curve = zeros(size(noise_powers));
+SER_cp20_curve = zeros(size(noise_powers));
+
+for i = 1:length(noise_powers)
+    np = noise_powers(i);
+    
+    % ==========================================
+    % 測試 CP = 2 的系統
+    % ==========================================
+    n_s = sqrt(np) * randn(size(rx_short_clean));
+    rx_s_down = rx_short_clean + n_s;
+    rx_s_down = rx_s_down(Ns:Ns:end); % Downsampling
+    
+    ptr = 1; 
+    ofdm_rx_s = [];
+    for b=1:numBlocks
+        seg = rx_s_down(ptr + CP_short : ptr + CP_short + Nfft - 1);
+        Y_s = fft(seg.');
+        X_hat = Y_s ./ H_eff_safe.';
+        ofdm_rx_s = [ofdm_rx_s; X_hat];
+        ptr = ptr + Nfft + CP_short;
+    end
+    
+    vals_s = real(ofdm_rx_s(1:length(a))).';
+    % 限制範圍 (Clamp) 並計算 Index
+    idx_s = max(0, min(L-1, round((vals_s - m_min) / delta)));
+    % 還原數值並計算錯誤率
+    SER_cp2_curve(i) = sum(idx_s ~= q_index) / length(q_index);
+    
+    % ==========================================
+    % 測試 CP = 20 的系統
+    % ==========================================
+    n_l = sqrt(np) * randn(size(rx_long_clean));
+    rx_l_down = rx_long_clean + n_l;
+    rx_l_down = rx_l_down(Ns:Ns:end);
+    
+    ptr = 1; 
+    ofdm_rx_l = [];
+    for b=1:numBlocks
+        seg = rx_l_down(ptr + CP_long : ptr + CP_long + Nfft - 1);
+        Y_l = fft(seg.');
+        X_hat = Y_l ./ H_eff_safe.';
+        ofdm_rx_l = [ofdm_rx_l; X_hat];
+        ptr = ptr + Nfft + CP_long;
+    end
+    
+    vals_l = real(ofdm_rx_l(1:length(a))).';
+    idx_l = max(0, min(L-1, round((vals_l - m_min) / delta)));
+    SER_cp20_curve(i) = sum(idx_l ~= q_index) / length(q_index);
+end
+
+% 繪製對數座標圖 (Log-Log Plot)
+figure;
+loglog(noise_powers, SER_cp2_curve, '-o', 'LineWidth', 2); hold on;
+loglog(noise_powers, SER_cp20_curve, '-s', 'LineWidth', 2);
+grid on;
+xlabel('Noise Power'); 
+ylabel('Symbol Error Rate (SER)');
+title('SER vs Noise Power (CP=2 vs CP=20)');
+legend('CP = 2', 'CP = 20');
