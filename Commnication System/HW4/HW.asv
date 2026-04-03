@@ -1,0 +1,101 @@
+clear; close all; clc;
+
+%% parameter setting
+fs = 100;        % sample frequency
+fm = 1/64;
+fc = 1/4;
+a = 0.3;
+
+T = 300;
+t = 0:1/fs:T-1/fs;
+
+%% signal
+x = 1 + a*sin(2*pi*fm*t);   
+
+figure;
+plot(t,x,'k');
+title('original message');
+xlabel('t (s)');
+ylabel('x(t)');
+
+%% modulation
+y = x .* cos(2*pi*fc*t);
+
+figure;
+plot(t,y,'k');
+title('modulation signal');
+xlabel('t (s)');
+ylabel('y(t)');
+
+%% demodulation
+z = y .* cos(2*pi*fc*t);
+
+figure;
+plot(t,z,'k');
+title('demodulation signal');
+xlabel('t(s)');
+ylabel('z(t)');
+
+% 計算理想的 window size
+L = round(fs / (2 * fc));
+
+%% 進行濾波
+% 'Endpoints', 'shrink' 可以處理邊界問題，避免頭尾出現大範圍的零
+x_recover = movmean(z, L, 'Endpoints', 'shrink');
+
+
+%% demonstration 繪圖
+figure;
+plot(t, x, 'r', 'LineWidth', 1.2);      % 原始信號，紅線
+hold on;
+plot(t, x_recover, 'b--', 'LineWidth', 1.2); % 還原信號，藍虛線
+hold off;
+
+xlabel('Time (s)');     
+ylabel('Amplitude');
+title('Comparison of x and x\_recover');
+legend('x (original)', 'x\_recover', 'Location', 'best');
+grid on;
+
+%% implement complex parts
+I = rectpuls(t - 150, 100); 
+Q = tripuls(t - 150, 100);
+
+figure;
+plot(t,I,"k");
+title('I-branch');
+
+figure;
+plot(t,Q,"k");
+title('Q-branch');
+
+I_p = sqrt(2) .* cos(2*pi*fc*t) .* I;
+Q_p = -sqrt(2) .* sin(2*pi*fc*t) .* Q;
+
+figure;
+plot(t,I_p,"k");
+title('I-branch');
+
+figure;
+plot(t,Q_p,"k");
+title('Q-branch');
+
+x_real = I_p + Q_p;
+y = x_real;
+
+figure;
+plot(t,x_real,"k");
+title('x_{real} signal');
+
+x_b = I + 1i.*Q;
+x_com = real(x_b.*sqrt(2).*exp(1i*2*pi*fc*t));
+
+figure;
+plot(t,x_com,"k");
+title('x_{com} signal');
+
+
+
+
+
+
